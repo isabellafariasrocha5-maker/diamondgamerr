@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Super Dona</title>
+<style>
+body { margin:0; overflow:hidden; font-family:Arial,sans-serif; background:black; color:white; }
+canvas { display:block; }
+#loginContainer { position:absolute; top:0; left:0; width:100%; height:100%; display:flex; justify-content:center; align-items:center; background:rgba(0,0,0,0.9); z-index:20; flex-direction: column; text-align:center; }
+#loginContainer input { margin:5px; padding:10px; border-radius:5px; border:none; width:200px; }
+#loginContainer button { margin:5px; padding:10px 20px; border:none; border-radius:5px; background:#00aaff; color:white; cursor:pointer; }
+#loginContainer button:hover { background:#0091dd; }
+#loginMessage { color:yellow; margin-top:10px; }
+#menu { position:absolute; top:10px; width:100%; text-align:center; z-index:10; display:none; }
+#shopIcon { position:absolute; top:15px; right:20px; font-size:30px; cursor:pointer; z-index:15; display:none; }
+#shop { position:absolute; top:50px; right:20px; background:rgba(0,0,0,0.8); padding:10px; border-radius:10px; display:none; text-align:center; z-index:15; }
+button { padding:10px 20px; font-size:16px; cursor:pointer; border-radius:5px; background:#00aaff; color:white; border:none; margin:5px; }
+button:hover { background:#0091dd; }
+#gameOverMsg { position:absolute; width:100%; top:40%; text-align:center; font-size:60px; color:red; display:none; }
+</style>
+</head>
+<body>
+
+<div id="loginContainer">
+  <h2>Login / Registro</h2>
+  <input type="text" id="username" placeholder="Nome de usuário">
+  <input type="password" id="password" placeholder="Senha">
+  <button onclick="register()">Registrar</button>
+  <button onclick="login()">Entrar</button>
+  <div id="loginMessage"></div>
+</div>
+
+<div id="menu">
+  <h1>✈️ Super Dona</h1>
+  <p>Pontos: <span id="score">0</span> | Recorde: <span id="record">0</span> | Moedas: <span id="coins">0</span></p>
+  <button id="playButton" onclick="startGame()">▶️ Jogar</button>
+</div>
+
+<div id="shopIcon" onclick="toggleShop()">🛒</div>
+<div id="shop">
+  <h3>Loja - 50 moedas</h3>
+  <p>Mudar cor do avião:</p>
+  <button onclick="mudarCor('green')">Verde</button>
+  <button onclick="mudarCor('yellow')">Amarelo</button>
+  <button onclick="mudarCor('red')">Vermelho</button>
+  <button onclick="mudarCor('pink')">Rosa</button>
+  <button onclick="mudarCor('orange')">Laranja</button>
+</div>
+
+<div id="gameOverMsg">💀 GAME OVER 💀</div>
+
+<canvas id="game"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+// Variáveis do jogo
+let aviao, pedras, score, recorde, estrelas, powerUps, explosoes, meteoros, nuvens, planetas;
+let playing=false;
+let velocidadePedras=4;
+let teclaEsquerda=false;
+let teclaDireita=false;
+let aviaoCor="blue";
+let coins=0;
+let currentUser="";
+const aviaoImg = new Image();
+aviaoImg.src = "https://i.imgur.com/4kXcPz0.png";
+
+// ---- LOGIN ----
+function showMessage(msg){document.getElementById("loginMessage").innerText=msg;}
+
+function register(){
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value.trim();
+  if(!username||!password){showMessage("Preencha ambos campos!"); return;}
+  let users=JSON.parse(localStorage.getItem("users")||"{}");
+  if(users[username]){showMessage("Usuário já existe!"); return;}
+  users[username]=btoa(password);
+  localStorage.setItem("users",JSON.stringify(users));
+  showMessage("Registrado! Faça login.");
+}
+
+function login(){
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value.trim();
+  let users=JSON.parse(localStorage.getItem("users")||"{}");
+  if(users[username] && users[username]===btoa(password)){
+    showMessage("Login bem-sucedido!");
+    currentUser=username;
+    // Carregar recorde e moedas
+    recorde=parseInt(localStorage.getItem(username+"_recorde")||0);
+    coins=parseInt(localStorage.getItem(username+"_coins")||0);
+    aviaoCor=localStorage.getItem(username+"_cor")||"blue";
+    document.getElementById("record").innerText=recorde;
+    document.getElementById("coins").innerText=coins;
+    document.getElementById("loginContainer").style.display="none";
+    document.getElementById("menu").style.display="block";
+    document.getElementById("shopIcon").style.display="block";
+  } else {
+    showMessage("Usuário ou senha incorretos!");
+  }
+}
+
+// ---- CONTROLES ----
+document.addEventListener("keydown", e=>{
+  if(!playing) return;
+  if(e.key==="ArrowLeft") teclaEsquerda=true;
+  if(e.key==="ArrowRight") teclaDireita=true;
+});
+document.addEventListener("keyup", e=>{
+  if(e.key==="ArrowLeft") teclaEsquerda=false;
+  if(e.key==="ArrowRight") teclaDireita=false;
+});
+
+// ---- FUNÇÕES DE JOGO ----
+function saveProgress(){
+  if(currentUser){
+    localStorage.setItem(currentUser+"_recorde", recorde);
+    localStorage.setItem(currentUser+"_coins", coins);
+    localStorage.setItem(currentUser+"_cor", aviaoCor);
+  }
+}
+
+function criarEstrelas(num){estrelas=[];for(let i=0;i<num;i++)estrelas.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,size:Math.random()*2+1,speed:Math.random()*0.8+0.2,brilho:Math.random()});}
+function criarNuvens(num){nuvens=[];for(let i=0;i<num;i++)nuvens.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,w:50+Math.random()*50,h:20+Math.random()*20,speed:0.2+Math.random()*0.5});}
+function criarPlanetas(){planetas=[{x:150,y:150,r:60,color:"#ff5555"},{x:canvas.width-200,y:100,r:50,color:"#55ffcc"},{x:canvas.width/2,y:200,r:40,color:"#ffaa00"}];}
+function criarMeteoros(num){meteoros=[];for(let i=0;i<num;i++)meteoros.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,s:2+Math.random()*3,speed:2+Math.random()*3,trail:[]});}
+
+// ---- PEDRAS E POWERUPS ----
+function criarPedra(){pedras.push({x:Math.random()*(canvas.width-50),y:-40,s:25+Math.random()*25});}
+function criarPowerUp(){powerUps.push({x:Math.random()*(canvas.width-30),y:-30,s:20,tipo:Math.random()<0.5?"pontos":"protecao"});}
+function colisao(a,p){return a.x<p.x+p.s&&a.x+a.w>p.x&&a.y<p.y+p.s&&a.y+a.h>p.y;}
+
+// ---- GAME OVER ----
+function gameOver(){
+  playing=false;
+  if(score>recorde){recorde=score; saveProgress();}
+  document.getElementById("record").innerText=recorde;
+  document.getElementById("coins").innerText=coins;
+  document.getElementById("gameOverMsg").style.display="block";
+  document.getElementById("menu").style.display="block";
+}
+
+// ---- LOJA ----
+function mudarCor(cor){
+  if(coins>=50){aviaoCor=cor; coins-=50; saveProgress(); document.getElementById("coins").innerText=coins;}
+}
+function toggleShop(){
+  const shop=document.getElementById("shop");
+  shop.style.display=(shop.style.display==="block")?"none":"block";
+}
+
+// ---- INICIAR JOGO ----
+function startGame(){
+  document.getElementById("menu").style.display="none";
+  document.getElementById("gameOverMsg").style.display="none";
+  aviao={x:canvas.width/2-25,y:canvas.height-120,w:50,h:50,protegido:false};
+  pedras=[];powerUps=[];explosoes=[];
+  score=0;velocidadePedras=4;
+  teclaEsquerda=false;teclaDireita=false;
+  criarEstrelas(100);criarMeteoros(10);criarNuvens(7);criarPlanetas();
+  playing=true;
+  loop();
+}
+
+// ---- LOOP PRINCIPAL ----
+function loop(){
+  if(!playing) return;
+
+  if(teclaEsquerda) aviao.x-=8;
+  if(teclaDireita) aviao.x+=8;
+  if(aviao.x<0) aviao.x=0;
+  if(aviao.x>canvas.width-aviao.w) aviao.x=canvas.width-aviao.w;
+
+  // Fundo
+  let grad=ctx.createLinearGradient(0,0,0,canvas.height);
+  grad.addColorStop(0,"#0b0b1a");
+  grad.addColorStop(1,"#001f3f");
+  ctx.fillStyle=grad;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // Planetas
+  planetas.forEach(p=>{ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,2*Math.PI);ctx.fill();});
+
+  // Nuvens
+  nuvens.forEach(n=>{ctx.fillStyle="rgba(255,255,255,0.4)";ctx.beginPath();ctx.ellipse(n.x,n.y,n.w,n.h,0,0,2*Math.PI);ctx.fill();n.x+=n.speed;if(n.x>canvas.width+50)n.x=-50;});
+
+  // Estrelas
+  estrelas.forEach(s=>{ctx.fillStyle=`rgba(255,255,255,${s.brilho})`;ctx.beginPath();ctx.arc(s.x,s.y,s.size,0,2*Math.PI);ctx.fill();s.y+=s.speed;s.brilho+=Math.random()*0.05-0.025;if(s.brilho>1)s.brilho=1;if(s.brilho<0)s.brilho=0;if(s.y>canvas.height)s.y=0;});
+
+  // Meteoros
+  meteoros.forEach(m=>{m.trail.push({x:m.x,y:m.y});if(m.trail.length>10)m.trail.shift();ctx.strokeStyle="rgba(255,100,0,0.5)";ctx.beginPath();
+    for(let i=0;i<m.trail.length-1;i++){ctx.moveTo(m.trail[i].x,m.trail[i].y);ctx.lineTo(m.trail[i+1].x,m.trail[i+1].y);}
+    ctx.stroke();ctx.fillStyle="orange";ctx.beginPath();ctx.arc(m.x,m.y,m.s,0,2*Math.PI);ctx.fill();
+    m.y+=m.speed;if(m.y>canvas.height){m.y=-10;m.x=Math.random()*canvas.width;m.trail=[];}
+  });
+
+  // Avião
+  ctx.fillStyle=aviaoCor;
+  ctx.drawImage(aviaoImg,aviao.x,aviao.y,aviao.w,aviao.h);
+
+  // Pedras
+  ctx.fillStyle="#888";pedras.forEach(p=>{p.y+=velocidadePedras;ctx.beginPath();ctx.arc(p.x+p.s/2,p.y+p.s/2,p.s/2,0,2*Math.PI);ctx.fill();if(!aviao.protegido && colisao(aviao,p)) gameOver();});
+  pedras=pedras.filter(p=>p.y<canvas.height);
+
+  // Power-ups
+  powerUps.forEach((pu,i)=>{pu.y+=2;ctx.fillStyle=pu.tipo==="pontos"?"yellow":"cyan";ctx.beginPath();ctx.arc(pu.x+pu.s/2,pu.y+pu.s/2,pu.s/2,0,2*Math.PI);ctx.fill();
+    if(colisao(aviao,pu)){if(pu.tipo==="pontos") score+=50;if(pu.tipo==="protecao"){aviao.protegido=true;setTimeout(()=>aviao.protegido=false,5000);}coins+=10;powerUps.splice(i,1);}
+  });
+
+  // Criar pedras e power-ups
+  if(Math.random()<0.03+score/5000) criarPedra(); 
+  if(Math.random()<0.005) criarPowerUp();
+
+  score++; document.getElementById("score").innerText=score;
+  document.getElementById("coins").innerText=coins;
+
+  if(score%200===0) velocidadePedras+=0.2;
+
+  requestAnimationFrame(loop);
+}
+
+window.addEventListener('resize',()=>{canvas.width=window.innerWidth;canvas.height=window.innerHeight;});
+</script>
+</body>
+</html>

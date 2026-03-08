@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Super Dona</title>
+<style>
+body {
+  margin: 0;
+  overflow: hidden;
+  font-family: Arial, sans-serif;
+  background: black;
+  color: white;
+}
+canvas { display: block; }
+#loginContainer {
+  position:absolute; top:0; left:0; width:100%; height:100%;
+  display:flex; justify-content:center; align-items:center; background:rgba(0,0,0,0.9); z-index:20;
+  flex-direction: column; text-align:center;
+}
+#loginContainer input {margin:5px; padding:10px; border-radius:5px; border:none; width:200px;}
+#loginContainer button {margin:5px; padding:10px 20px; border:none; border-radius:5px; background:#00aaff; color:white; cursor:pointer;}
+#loginContainer button:hover {background:#0091dd;}
+#loginMessage {color:yellow; margin-top:10px;}
+#menu {
+  position: absolute;
+  top: 10px;
+  width: 100%;
+  text-align: center;
+  z-index: 10;
+  display:none;
+}
+#shopIcon {
+  position:absolute;
+  top:15px; right:20px;
+  font-size:30px; cursor:pointer; z-index:15;
+}
+#shop {
+  position:absolute;
+  top:50px; right:20px;
+  background:rgba(0,0,0,0.8); padding:10px; border-radius:10px;
+  display:none; text-align:center; z-index:15;
+}
+button {padding:10px 20px; font-size:16px; cursor:pointer; border-radius:5px; background:#00aaff; color:white; border:none; margin:5px;}
+button:hover { background:#0091dd; }
+#gameOverMsg {
+  position: absolute;
+  width: 100%;
+  top: 40%;
+  text-align: center;
+  font-size: 60px;
+  color: red;
+  display: none;
+}
+</style>
+</head>
+<body>
+
+<div id="loginContainer">
+  <h2>Login / Registro</h2>
+  <input type="text" id="username" placeholder="Nome de usuário">
+  <input type="password" id="password" placeholder="Senha">
+  <button onclick="register()">Registrar</button>
+  <button onclick="login()">Entrar</button>
+  <div id="loginMessage"></div>
+</div>
+
+<div id="menu">
+  <h1>✈️ Super Dona</h1>
+  <p>Pontos: <span id="score">0</span> | Recorde: <span id="record">0</span> | Moedas: <span id="coins">0</span></p>
+  <button id="playButton" onclick="startGame()">▶️ Jogar</button>
+</div>
+
+<div id="shopIcon" onclick="toggleShop()">🛒</div>
+<div id="shop">
+  <h3>Loja - 50 moedas</h3>
+  <p>Mudar cor do avião:</p>
+  <button onclick="mudarCor('green')">Verde</button>
+  <button onclick="mudarCor('yellow')">Amarelo</button>
+  <button onclick="mudarCor('red')">Vermelho</button>
+  <button onclick="mudarCor('pink')">Rosa</button>
+  <button onclick="mudarCor('orange')">Laranja</button>
+</div>
+
+<div id="gameOverMsg">💀 GAME OVER 💀</div>
+
+<canvas id="game"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+// Variáveis do jogo
+let aviao, pedras, score, recorde, estrelas, powerUps, explosoes, meteoros, nuvens, planetas;
+let playing=false;
+let velocidadePedras=4;
+let teclaEsquerda=false;
+let teclaDireita=false;
+let aviaoCor="blue";
+let coins=0;
+let currentUser="";
+
+// ---- LOGIN ----
+function showMessage(msg){document.getElementById("loginMessage").innerText=msg;}
+
+function register(){
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value.trim();
+  if(!username||!password){showMessage("Preencha ambos campos!

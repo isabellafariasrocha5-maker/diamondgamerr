@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Speed Run</title>
+<style>
+body {margin:0; overflow:hidden; font-family:Arial, sans-serif; background:black; color:white;}
+canvas {display:block;}
+#loginContainer {
+  position:absolute; top:0; left:0; width:100%; height:100%;
+  display:flex; justify-content:center; align-items:center; background:rgba(0,0,0,0.9); z-index:20;
+  flex-direction: column; text-align:center;
+}
+#loginContainer input {margin:5px; padding:10px; border-radius:5px; border:none; width:200px;}
+#loginContainer button {margin:5px; padding:10px 20px; border:none; border-radius:5px; background:#00aaff; color:white; cursor:pointer;}
+#loginContainer button:hover {background:#0091dd;}
+#loginMessage {color:yellow; margin-top:10px;}
+#menu {
+  position:absolute;
+  top:10px;
+  width:100%;
+  text-align:center;
+  z-index:10;
+  display:none;
+}
+#shopIcon {
+  position:absolute;
+  top:15px;
+  right:20px;
+  font-size:30px;
+  cursor:pointer;
+  z-index:15;
+}
+#shop {
+  position:absolute;
+  top:50px;
+  right:20px;
+  background:rgba(0,0,0,0.8);
+  padding:10px;
+  border-radius:10px;
+  display:none;
+  text-align:center;
+  z-index:15;
+}
+button {padding:10px 20px; font-size:16px; cursor:pointer; border-radius:5px; background:#00aaff; color:white; border:none; margin:5px;}
+button:hover { background:#0091dd; }
+#gameOverMsg {
+  position:absolute;
+  width:100%;
+  top:40%;
+  text-align:center;
+  font-size:50px;
+  color:red;
+  display:none;
+}
+</style>
+</head>
+<body>
+
+<div id="loginContainer">
+  <h2>Login / Registro</h2>
+  <input type="text" id="username" placeholder="Nome de usuário">
+  <input type="password" id="password" placeholder="Senha">
+  <button onclick="register()">Registrar</button>
+  <button onclick="login()">Entrar</button>
+  <div id="loginMessage"></div>
+</div>
+
+<div id="menu">
+  <h1>🚀 Speed Run</h1>
+  <p>Pontos: <span id="score">0</span> | Recorde: <span id="record">0</span> | Moedas: <span id="coins">0</span></p>
+  <button id="playButton" onclick="startGame()">▶️ Jogar</button>
+</div>
+
+<div id="shopIcon" onclick="toggleShop()">🛒</div>
+
+<div id="shop">
+  <h3>Loja</h3>
+  <p>Troque a cor do avião (50 moedas):</p>
+  <button onclick="mudarCor('blue')">Azul</button>
+  <button onclick="mudarCor('red')">Vermelho</button>
+  <button onclick="mudarCor('green')">Verde</button>
+  <button onclick="mudarCor('yellow')">Amarelo</button>
+</div>
+
+<div id="gameOverMsg">💀💀<br>GAME OVER<br><button onclick="voltarMenu()">Voltar</button></div>
+
+<canvas id="game"></canvas>
+
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+canvas.width=window.innerWidth;
+canvas.height=window.innerHeight;
+
+// Variáveis do jogo
+let aviao, pedras, score, estrelas, powerUps, explosoes, meteoros, nuvens, planetas;
+let velocidadePedras=4, teclaEsquerda=false, teclaDireita=false;
+let aviaoCor='blue';
+let fogueteY = canvas.height + 100;
+let playing=false;
+let coins=0, recorde=0;
+let currentUser="";
+
+// ---- SISTEMA DE LOGIN ----
+function showMessage(msg){document.getElementById("loginMessage").innerText=msg;}
+
+function register(){
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value.trim();
+  if(!username||!password){showMessage("Preencha ambos campos!"); return;}
+  let users=JSON.parse(localStorage.getItem("users")||"{}");
+  if(users[username]){showMessage("Usuário já existe!"); return;}
+  users[username]=btoa(password);
+  localStorage.setItem("users",JSON.stringify(users));
+  showMessage("Registrado! Agora faça login.");
+}
+
+function login(){
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value.trim();
+  let users=JSON.parse(localStorage.getItem("users")||"{}");
+  if(users[username] && users[username]===btoa(password)){
+    showMessage("Login bem-sucedido!");
+    currentUser=username;
+    // Carregar recorde e moedas
+    recorde=parseInt(localStorage.getItem(username+"_recorde")||0);
+    coins=parseInt(localStorage.getItem(username+"_coins")||0);
+    document.getElementById("record").innerText=recorde;
+    document.getElementById("coins").innerText=coins;
+    document.getElementById("loginContainer").style.display="none";
+    startAnimation();
+  } else {
+    showMessage("Usuário ou senha incorretos!");
+  }
+}
+
+// ---- CONTROLES ----
+document.addEventListener("keydown", e=>{
+  if(!playing) return;
+  if(e.key==="ArrowLeft"||e.key==="a") teclaEsquerda=true;
+  if(e.key==="ArrowRight"||e.key==="d") teclaDireita=true;
+});
+document.addEventListener("keyup", e=>{
+  if(e.key==="ArrowLeft"||e.key==="a") teclaEsquerda=false;
+  if(e.key==="ArrowRight"||e.key==="d") teclaDireita=false;
+});
+
+// ---- ANIMAÇÃO APÓS LOGIN ----
+function startAnimation(){
+  fogueteY = canvas.height + 100;
+  requestAnimationFrame(loopAnimation);
+}
+
+function loopAnimation(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  let grad=ctx.createLinearGradient(0,0,0,canvas.height);
+  grad.addColorStop(0,"#0b0b1a"); grad.addColorStop(1,"#001f3f");
+  ctx.fillStyle=grad; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  if(fogueteY>canvas.height/2-50){
+    ctx.fillStyle="orange";
+    ctx.beginPath();
+    ctx.moveTo(canvas.width/2, fogueteY);
+    ctx.lineTo(canvas.width/2-20, fogueteY+50);
+    ctx.lineTo(canvas.width/2+20, fogueteY+50);
+    ctx.closePath();
+    ctx.fill();
+    fogueteY -= 5;
+    requestAnimationFrame(loopAnimation);
+  } else {
+    document.getElementById("menu").style.display="block";
+  }
+}
+
+// ---- FUNÇÕES DO JOGO (startGame, loop etc) ----
+// Aqui você deve colar todo o seu código original de startGame(), loop() e funções de pedras, powerUps, explosões etc.
+// Não esqueça de salvar progresso por usuário:
+function saveProgress(){
+  if(currentUser){
+    localStorage.setItem(currentUser+"_recorde", recorde);
+    localStorage.setItem(currentUser+"_coins", coins);
+  }
+}
+
+function gameOver(){
+  playing=false;
+  saveProgress();
+  document.getElementById("gameOverMsg").style.display="block";
+  document.getElementById("menu").style.display="block";
+}
+
+function voltarMenu(){
+  document.getElementById("gameOverMsg").style.display="none";
+  document.getElementById("menu").style.display="block";
+}
+
+function mudarCor(cor){
+  if(coins>=50){
+    aviaoCor=cor;
+    coins-=50;
+    document.getElementById("coins").innerText=coins;
+    saveProgress();
+  }
+}
+
+function toggleShop(){
+  const shop=document.getElementById("shop");
+  shop.style.display=(shop.style.display==="block")?"none":"block";
+}
+
+window.addEventListener('resize',()=>{canvas.width=window.innerWidth; canvas.height=window.innerHeight;});
+</script>
+
+</body>
+</html>

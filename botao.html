@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Botão que foge</title>
+    <style>
+        body {
+            height: 100vh;
+            margin: 0;
+            position: relative;
+            background-color: #f0f0f0;
+        }
+
+        button {
+            position: absolute;
+            padding: 15px 25px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<button onclick="mudarLugar()">Clique em mim</button>
+
+<script>
+    function mudarLugar() {
+        const botao = document.querySelector("button");
+
+        const largura = window.innerWidth - botao.offsetWidth;
+        const altura = window.innerHeight - botao.offsetHeight;
+
+        const x = Math.random() * largura;
+        const y = Math.random() * altura;
+
+        botao.style.left = x + "px";
+        botao.style.top = y + "px";
+    }
+</script>
+
+</body>
+</html>

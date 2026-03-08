@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Speed Run</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body {
+  margin: 0;
+  background: #87CEEB;
+  text-align: center;
+  font-family: Arial;
+}
+canvas {
+  background: linear-gradient(#87CEEB, #cceeff);
+  display: block;
+  margin: auto;
+  max-width: 100%;
+}
+#ui {
+  font-size: 16px;
+  padding: 5px;
+}
+#gameOver { display: none; }
+button {
+  padding: 10px 20px;
+  font-size: 16px;
+}
+</style>
+</head>
+<body>
+
+<h2>🏃 Speed Run</h2>
+<div id="ui">
+⭐ Pontos: <span id="score">0</span> |
+🍌 Bananas: <span id="bananas">0</span> |
+🏆 Recorde: <span id="record">0</span>
+</div>
+
+<canvas id="game" width="800" height="300"></canvas>
+
+<div id="gameOver">
+  <h2>💥 Game Over</h2>
+  <button onclick="restartGame()">Voltar do começo</button>
+</div>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+let monkey, obstacles, bananasArr;
+let speed, gravity;
+let score = 0;
+let bananaCount = 0;
+let record = localStorage.getItem("record") || 0;
+let groundX = 0;
+let running = true;
+let hatType = "brown";
+
+document.getElementById("record").textContent = record;
+
+// 🔊 Sons retrô
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function beep(freq=600,time=0.1){
+  const o=audioCtx.createOscillator();
+  o.type="square"; o.frequency.value=freq;
+  o.connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime+time);
+}
+
+function startGame(){
+  monkey={x:60,y:200,w:40,h:40,vy:0,jump:false};
+  obstacles=[];
+  bananasArr=[];
+  speed=5; gravity=1.2;
+  score=0; bananaCount=0;
+  hatType="brown";
+  running=true;
+  document.getElementById("score").textContent=0;
+  document.getElementById("bananas").textContent=0;
+  document.getElementById("gameOver").style.display="none";
+}
+
+function drawMonkey(){
+  // Corpo
+  ctx.fillStyle="#8B4513";
+  ctx.beginPath();
+  ctx.arc(monkey.x+20,monkey.y+22,18,0,Math.PI*2);
+  ctx.fill();
+
+  // Olhos
+  ctx.fillStyle="white";
+  ctx.beginPath();
+  ctx.arc(monkey.x+14,monkey.y+18,4,0,Math.PI*2);
+  ctx.arc(monkey.x+26,monkey.y+18,4,0,Math.PI*2);
+  ctx.fill();
+
+  ctx.fillStyle="black";
+  ctx.beginPath();
+  ctx.arc(monkey.x+14,monkey.y+18,2,0,Math.PI*2);
+  ctx.arc(monkey.x+26,monkey.y+18,2,0,Math.PI*2);
+  ctx.fill();
+
+  // Chapéu
+  ctx.fillStyle = hatType==="brown" ? "#654321" : "#FFD700";
+  ctx.fillRect(monkey.x+6,monkey.y-2,28,8);
+  ctx.fillRect(monkey.x+10,monkey.y-14,20,12);
+}
+
+function drawGround(){
+  ctx.fillStyle="#228B22";
+  for(let i=0;i<canvas.width;i+=40){
+    ctx.fillRect(i-groundX,240,20,10);
+  }
+  groundX+=speed;
+  if(groundX>40)groundX=0;
+}
+
+function createObstacle(){
+  obstacles.push({
+    x:canvas.width,
+    y:200,
+    w:30,
+    h:50
+  });
+}
+
+function createBanana(){
+  bananasArr.push({
+    x:canvas.width,
+    y:170
+  });
+}
+
+function drawObstacles(){
+  ctx.fillStyle="green";
+  obstacles.forEach(o=>{
+    ctx.fillRect(o.x,o.y,o.w,o.h);
+    o.x-=speed;
+  });
+}
+
+function drawBananas(){
+  ctx.fillStyle="yellow";
+  bananasArr.forEach(b=>{
+    ctx.beginPath();
+    ctx.arc(b.x,b.y,8,0,Math.PI*2);
+    ctx.fill();
+    b.x-=speed;
+  });
+}
+
+function update(){
+  if(!running)return;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  score++;
+  document.getElementById("score").textContent=score;
+
+  if(score>record){
+    record=score;
+    localStorage.setItem("record",record);
+    document.getElementById("record").textContent=record;
+  }
+
+  speed=5+Math.floor(score/1000);
+
+  // Física
+  monkey.vy+=gravity;
+  monkey.y+=monkey.vy;
+  if(monkey.y>=200){
+    monkey.y=200;
+    monkey.vy=0;
+    monkey.jump=false;
+  }
+
+  if(Math.random()<0.02)createObstacle();
+  if(Math.random()<0.015)createBanana();
+
+  // Colisão obstáculo
+  obstacles.forEach(o=>{
+    if(monkey.x<o.x+o.w &&
+       monkey.x+monkey.w>o.x &&
+       monkey.y<o.y+o.h &&
+       monkey.y+monkey.h>o.y){
+      endGame();
+    }
+  });
+
+  // Colisão banana
+  bananasArr.forEach((b,i)=>{
+    if(Math.abs(monkey.x-b.x)<20 && Math.abs(monkey.y-b.y)<20){
+      bananasArr.splice(i,1);
+      bananaCount++;
+      score+=200;
+      document.getElementById("bananas").textContent=bananaCount;
+      beep(800,0.15);
+
+      // Troca chapéu a cada 5 bananas
+      if(bananaCount % 5 === 0){
+        hatType = hatType==="brown" ? "gold" : "brown";
+      }
+    }
+  });
+
+  drawGround();
+  drawMonkey();
+  drawBananas();
+  drawObstacles();
+
+  requestAnimationFrame(update);
+}
+
+function jump(){
+  if(!monkey.jump){
+    monkey.vy=-18;
+    monkey.jump=true;
+    beep();
+  }
+}
+
+function endGame(){
+  running=false;
+  beep(200,0.4);
+  document.getElementById("gameOver").style.display="block";
+}
+
+function restartGame(){
+  startGame();
+  update();
+}
+
+document.addEventListener("keydown",e=>{
+  if(e.code==="Space")jump();
+});
+canvas.addEventListener("touchstart",e=>{
+  e.preventDefault();
+  jump();
+});
+
+startGame();
+update();
+</script>
+
+</body>
+</html>

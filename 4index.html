@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diamond Game</title>
+<style>
+body{
+  margin:0;
+  font-family:Arial;
+  background:#081c3a;
+  color:white;
+  overflow-x:hidden;
+}
+
+/* LOGIN */
+.login-area{
+  position:fixed;
+  top:15px;
+  right:20px;
+  z-index:999;
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:nowrap; /* impede que quebre linha */
+}
+.login-area button{
+  padding:6px 12px;
+  border:none;
+  border-radius:6px;
+  background:#00d4ff;
+  cursor:pointer;
+  font-weight:bold;
+}
+.user-info{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:nowrap; /* tudo na mesma linha */
+}
+.user-info span{
+  font-weight:bold;
+  white-space:nowrap; /* impede que o nome quebre linha */
+}
+.user-info button{
+  background:#00d4ff;
+  border:none;
+  border-radius:6px;
+  padding:6px 10px;
+  cursor:pointer;
+  font-weight:bold;
+}
+
+/* HISTÓRICO */
+.historico{
+  display:none;
+  position:fixed;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  background:#132a4a;
+  padding:20px;
+  border-radius:10px;
+  width:320px;
+  max-height:400px;
+  overflow:auto;
+}
+.comprovante{
+  border-bottom:1px solid #00d4ff;
+  margin-bottom:10px;
+  padding-bottom:5px;
+}
+
+/* foguete */
+.rocket{
+  position:absolute;
+  font-size:80px;
+  animation:voar 4s infinite ease-in-out;
+  opacity:0.6;
+}
+@keyframes voar{
+0%{transform:translateY(200px);}
+50%{transform:translateY(-200px);}
+100%{transform:translateY(200px);}
+}
+
+/* diamantes */
+.diamond{
+  position:fixed;
+  top:-50px;
+  font-size:20px;
+  animation:cair 6s linear infinite;
+  opacity:0.5;
+}
+@keyframes cair{
+0%{transform:translateY(-50px)}
+100%{transform:translateY(110vh)}
+}
+
+/* tela inicial */
+.start{
+  height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  flex-direction:column;
+}
+.start h1{
+  font-size:50px;
+  text-shadow:3px 3px 10px black;
+}
+
+/* logo */
+.logo{
+  display:none;
+  font-size:60px;
+  font-weight:bold;
+  animation:piscando 1s infinite;
+}
+@keyframes piscando{
+0%{opacity:1}
+50%{opacity:0}
+100%{opacity:1}
+}
+
+/* loja */
+.loja{
+  display:none;
+  padding:20px;
+}
+.loja h1{
+  text-align:center;
+  margin-bottom:10px;
+}
+
+/* contador */
+.contador{
+  text-align:center;
+  margin-bottom:20px;
+  font-size:14px;
+  color:#7fdfff;
+}
+
+/* produtos */
+.produtos{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:12px;
+}
+.card{
+  background:#132a4a;
+  padding:12px;
+  border-radius:10px;
+  text-align:center;
+  box-shadow:0 0 15px rgba(0,212,255,0.4);
+  transition:0.3s;
+}
+.card:hover{
+  transform:scale(1.05);
+}
+.card button{
+  margin-top:5px;
+  padding:6px 10px;
+  border:none;
+  border-radius:6px;
+  background:#00d4ff;
+  cursor:pointer;
+}
+
+/* compra */
+.compra{
+  display:none;
+  padding:20px;
+  text-align:center;
+}
+.id-inputs{
+  display:flex;
+  gap:10px;
+  justify-content:center;
+  margin-bottom:10px;
+}
+.compra input{
+  width:100px;
+  padding:8px;
+  border:2px solid #00d4ff;
+  border-radius:6px;
+  background:#132a4a;
+  color:white;
+  outline:none;
+}
+.msg-erro{
+  color:#ff4444;
+  margin-top:5px;
+  font-size:14px;
+  display:none;
+}
+
+/* pix */
+.pix{
+  display:none;
+  text-align:center;
+  margin-top:15px;
+  background:#132a4a;
+  padding:20px;
+  border-radius:10px;
+  animation:fadeIn 0.5s ease forwards;
+}
+@keyframes fadeIn{
+  from {opacity:0;}
+  to {opacity:1;}
+}
+.qr{
+  width:200px;
+  margin:10px auto;
+  display:block;
+  border-radius:10px;
+  border:2px solid #00d4ff;
+}
+.pix-buttons{
+  margin-top:15px;
+  display:flex;
+  justify-content:center;
+  gap:15px;
+}
+.pix-buttons button{
+  padding:10px 15px;
+  border:none;
+  border-radius:8px;
+  background:#00d4ff;
+  color:white;
+  cursor:pointer;
+  font-weight:bold;
+  transition:0.3s;
+}
+.pix-buttons button:hover{
+  background:#00aacc;
+}
+
+/* sucesso */
+.sucesso{
+  display:none;
+  text-align:center;
+  padding:40px;
+}
+.seguro{
+  margin-top:30px;
+  text-align:center;
+  font-size:14px;
+}
+.insta{
+  color:#00d4ff;
+  text-decoration:none;
+  font-weight:bold;
+}
+
+/* logout */
+.logout{
+  background:#ff4444;
+}
+.logout:hover{
+  background:#cc0000;
+}
+
+/* RESPONSIVO */
+@media(max-width:480px){
+  .diamond{font-size:14px;}
+  .rocket{font-size:50px;}
+  .card button, .login-area button, .user-info button{padding:8px;}
+  .compra input{width:80px;}
+  .pix-buttons{flex-direction:column;}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-area">
+  <button onclick="abrirLogin()" id="btnLogin">Login</button>
+  <div class="user-info" id="userInfo" style="display:none;">
+    <span id="nomeUsuario"></span>
+    <button onclick="abrirHistorico()">Histórico</button>
+    <button class="logout" onclick="logout()">Sair</button>
+  </div>
+</div>
+
+<div class="login-box" id="loginBox">
+  <h2>Login</h2>
+  <input id="loginNome" placeholder="Seu nome">
+  <br><br>
+  <input type="password" id="loginSenha" placeholder="Senha">
+  <br><br>
+  <button onclick="fazerLogin()">Entrar</button>
+</div>
+
+<div class="historico" id="historico">
+  <h2>Histórico de compras</h2>
+  <div id="listaCompras"></div>
+  <br>
+  <button onclick="fecharHistorico()">Fechar</button>
+</div>
+
+<div class="diamond" style="left:10%">💎</div>
+<div class="diamond" style="left:30%">💎</div>
+<div class="diamond" style="left:50%">💎</div>
+<div class="diamond" style="left:70%">💎</div>
+<div class="diamond" style="left:90%">💎</div>
+<div class="rocket">🚀</div>
+
+<div class="start" id="start">
+  <h1 id="texto">Como posso te ajudar?</h1>
+  <div class="logo" id="logo">DIAMOND GAME</div>
+</div>
+
+<div class="loja" id="loja">
+  <h1>💎 Diamond Game</h1>
+  <div class="contador">🔥 12 pessoas comprando agora</div>
+  <div class="produtos">
+    <div class="card">220 💎<br>R$10,48<br><button onclick="comprar('220 Diamantes')">Comprar</button></div>
+    <div class="card">310 💎<br>R$15,49<br><button onclick="comprar('310 Diamantes')">Comprar</button></div>
+    <div class="card">520 💎<br>R$22,49<br><button onclick="comprar('520 Diamantes')">Comprar</button></div>
+    <div class="card">913 💎<br>R$36,48<br><button onclick="comprar('913 Diamantes')">Comprar</button></div>
+    <div class="card">1060 💎<br>R$46,49<br><button onclick="comprar('1060 Diamantes')">Comprar</button></div>
+    <div class="card">1738 💎<br>R$67,48<br><button onclick="comprar('1738 Diamantes')">Comprar</button></div>
+  </div>
+  <div class="seguro">
+    <p>🔒 Compra segura</p>
+    <p>
+      Suporte Instagram:
+      <a class="insta" href="https://instagram.com/_ezequiel_santosx?text=Olá%20estou%20com%20problemas%20na%20minha%20compra" target="_blank">
+        @_ezequiel_santosx
+      </a>
+    </p>
+  </div>
+</div>
+
+<div class="compra" id="compra">
+  <h2>Confirme seu ID</h2>
+  <div class="id-inputs">
+    <input id="idJogador1" placeholder="Digite seu ID">
+    <input id="idJogador2" placeholder="Repita seu ID">
+  </div>
+  <div class="msg-erro" id="msgErro">IDs não coincidem</div>
+  <button onclick="confirmarID()">Confirmar</button>
+
+  <div class="pix" id="pix">
+    <p>Chave PIX: <b id="pixkey">09409177189</b></p>
+    <div class="pix-buttons">
+      <button onclick="copiarPix()">Copiar chave</button>
+      <button onclick="window.open('https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=09409177189','_blank')">Abrir QR Code</button>
+    </div>
+    <img class="qr" src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=09409177189">
+    <br><br>
+    <button onclick="pago()">Já paguei</button>
+  </div>
+</div>
+
+<div class="sucesso" id="sucesso">
+  <h2>✅ Obrigado pela sua compra</h2>
+  <p>Seu produto chega em até 24 horas.</p>
+</div>
+
+<script>
+let pacoteSelecionado=""
+let usuario=""
+let senha=""
+let compras=[]
+
+if(localStorage.getItem("usuario")){
+  usuario=localStorage.getItem("usuario")
+  document.getElementById("btnLogin").style.display="none"
+  document.getElementById("userInfo").style.display="flex"
+  document.getElementById("nomeUsuario").innerText=usuario
+}
+
+if(localStorage.getItem("compras")){
+  compras=JSON.parse(localStorage.getItem("compras"))
+}
+
+setTimeout(()=>{
+  document.getElementById("texto").style.display="none"
+  document.getElementById("logo").style.display="block"
+},5000)
+
+setTimeout(()=>{
+  document.getElementById("start").style.display="none"
+  document.getElementById("loja").style.display="block"
+},8000)
+
+function abrirLogin(){
+  if(usuario){ 
+    abrirHistorico();
+  } else {
+    document.getElementById("loginBox").style.display="block";
+    document.getElementById("loginNome").value = "";
+    document.getElementById("loginSenha").value = "";
+  }
+}
+
+function fazerLogin(){
+  usuario=document.getElementById("loginNome").value
+  senha=document.getElementById("loginSenha").value
+  if(usuario=="" || senha==""){
+    alert("Digite nome e senha")
+    return
+  }
+  localStorage.setItem("usuario",usuario)
+  document.getElementById("loginBox").style.display="none"
+  document.getElementById("btnLogin").style.display="none"
+  document.getElementById("userInfo").style.display="flex"
+  document.getElementById("nomeUsuario").innerText=usuario
+}
+
+function logout(){
+  usuario=""
+  localStorage.removeItem("usuario")
+  document.getElementById("btnLogin").style.display="block"
+  document.getElementById("userInfo").style.display="none"
+  fecharHistorico()
+}
+
+function comprar(pacote){
+  pacoteSelecionado=pacote
+  document.getElementById("loja").style.display="none"
+  document.getElementById("compra").style.display="block"
+  document.getElementById("pix").style.display="none"
+  document.getElementById("idJogador1").value=""
+  document.getElementById("idJogador2").value=""
+  document.getElementById("msgErro").style.display="none"
+}
+
+function confirmarID(){
+  let id1=document.getElementById("idJogador1").value
+  let id2=document.getElementById("idJogador2").value
+  if(id1=="" || id2==""){
+    alert("Digite seu ID duas vezes")
+    return
+  }
+  if(id1!==id2){
+    document.getElementById("msgErro").style.display="block"
+    return
+  }
+  document.getElementById("msgErro").style.display="none"
+  document.getElementById("pix").style.display="block"
+}
+
+function pago(){
+  let data=new Date().toLocaleString()
+  let registro=`
+  <div class="comprovante">
+  Pacote: ${pacoteSelecionado}<br>
+  Jogador ID: ${document.getElementById("idJogador1").value}<br>
+  Data: ${data}
+  </div>
+  `
+  compras.push(registro)
+  localStorage.setItem("compras",JSON.stringify(compras))
+  document.getElementById("compra").style.display="none"
+  document.getElementById("sucesso").style.display="block"
+}
+
+function copiarPix(){
+  let pix=document.getElementById("pixkey").innerText
+  navigator.clipboard.writeText(pix)
+  alert("Chave PIX copiada!")
+}
+
+function abrirHistorico(){
+  let lista=document.getElementById("listaCompras")
+  lista.innerHTML=""
+  compras.forEach(c=>{
+    lista.innerHTML+=c
+  })
+  document.getElementById("historico").style.display="block"
+}
+
+function fecharHistorico(){
+  document.getElementById("historico").style.display="none"
+}
+
+</script>
+</body>
+</html>

@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Super Dona</title>
+<style>
+body {
+  margin: 0;
+  overflow: hidden;
+  background: black;
+  font-family: Arial, sans-serif;
+  color: white;
+  text-align: center;
+}
+canvas {
+  display: block;
+  margin: auto;
+  border: 2px solid white;
+}
+#menu {
+  position: absolute;
+  top: 10px;
+  width: 100%;
+  text-align: center;
+}
+button {
+  padding: 12px 25px;
+  font-size: 18px;
+  cursor: pointer;
+  border-radius: 5px;
+  background: #00aaff;
+  color: white;
+  border: none;
+}
+button:hover {
+  background: #0091dd;
+}
+</style>
+</head>
+<body>
+
+<div id="menu">
+  <h1>✈️ Super Dona</h1>
+  <p>Pontos: <span id="score">0</span> | Recorde: <span id="record">0</span></p>
+  <button id="playButton" onclick="startGame()">▶️ Jogar</button>
+</div>
+
+<canvas id="game" width="400" height="500"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+let aviao, pedras, score, recorde, estrelas, powerUps, explosoes, meteoros;
+let playing = false;
+let velocidadePedras = 3;
+let teclaEsquerda = false;
+let teclaDireita = false;
+
+// Recorde
+recorde = localStorage.getItem("recorde") || 0;
+document.getElementById("record").innerText = recorde;
+
+// Avião realista
+const aviaoImg = new Image();
+aviaoImg.src = "https://i.imgur.com/4kXcPz0.png"; // Avião mais detalhado frontal
+
+// SOM TIPO MARIO
+function beep(freq, time) {
+  const audio = new AudioContext();
+  const osc = audio.createOscillator();
+  osc.frequency.value = freq;
+  osc.connect(audio.destination);
+  osc.start();
+  setTimeout(() => osc.stop(), time);
+}
+
+// ESTRELAS DE FUNDO
+function criarEstrelas(num) {
+  estrelas = [];
+  for (let i = 0; i < num; i++) {
+    estrelas.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      size: Math.random() * 2 + 1,
+      speed: Math.random() * 0.8 + 0.2,
+      brilho: Math.random()
+    });
+  }
+}
+
+// METEOROS COM TRILHA
+function criarMeteoros(num) {
+  meteoros = [];
+  for (let i = 0; i < num; i++) {
+    meteoros.push({
+      x: Math.random()*canvas.width,
+      y: Math.random()*canvas.height,
+      s: 2 + Math.random()*3,
+      speed: 2 + Math.random()*2,
+      trail: []
+    });
+  }
+}
+
+// INICIAR JOGO
+function startGame() {
+  document.getElementById("menu").style.display = "none";
+  aviao = { x: 180, y: 420, w: 50, h: 50, protegido: false };
+  pedras = [];
+  powerUps = [];
+  explosoes = [];
+  score = 0;
+  velocidadePedras = 3;
+  teclaEsquerda = false;
+  teclaDireita = false;
+  criarEstrelas(60);
+  criarMeteoros(7);
+  playing = true;
+  loop();
+}
+
+// CONTROLES TECLADO
+document.addEventListener("keydown", e => {
+  if (!playing) return;
+  if (e.key === "ArrowLeft") teclaEsquerda = true;
+  if (e.key === "ArrowRight") teclaDireita = true;
+});
+document.addEventListener("keyup", e => {
+  if (e.key === "ArrowLeft") teclaEsquerda = false;
+  if (e.key === "ArrowRight") teclaDireita = false;
+});
+
+// CRIAR PEDRAS
+function criarPedra() {
+  pedras.push({
+    x: Math.random() * 360,
+    y: -40,
+    s: 25 + Math.random()*25
+  });
+}
+
+// CRIAR POWER-UPS
+function criarPowerUp() {
+  powerUps.push({
+    x: Math.random() * 360,
+    y: -30,
+    s: 20,
+    tipo: Math.random() < 0.5 ? "pontos" : "protecao"
+  });
+}
+
+// DETECTAR COLISÃO
+function colisao(a, p) {
+  return a.x < p.x + p.s &&
+         a.x + a.w > p.x &&
+         a.y < p.y + p.s &&
+         a.y + a.h > p.y;
+}
+
+// ADICIONAR EXPLOSÃO
+function adicionarExplosao(x, y) {
+  explosoes.push({x, y, frame:0});
+}
+
+// GAME OVER
+function gameOver() {
+  playing = false;
+  adicionarExplosao(aviao.x, aviao.y);
+  if (score > recorde) {
+    recorde = score;
+    localStorage.setItem("recorde", recorde);
+  }
+  document.getElementById("record").innerText = recorde;
+  document.getElementById("menu").style.display = "block";
+}
+
+// LOOP PRINCIPAL
+function loop() {
+  if (!playing) return;
+
+  // Mover avião
+  if (teclaEsquerda) aviao.x -= 7;
+  if (teclaDireita) aviao.x += 7;
+  if (aviao.x < 0) aviao.x = 0;
+  if (aviao.x > canvas.width - aviao.w) aviao.x = canvas.width - aviao.w;
+
+  // Fundo gradiente
+  let gradient = ctx.createLinearGradient(0,0,0,canvas.height);
+  gradient.addColorStop(0,"#0b0b1a");
+  gradient.addColorStop(1,"#001f3f");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // Estrelas
+  estrelas.forEach(s=>{
+    ctx.fillStyle = `rgba(255,255,255,${s.brilho})`;
+    ctx.beginPath();
+    ctx.arc(s.x,s.y,s.size,0,2*Math.PI);
+    ctx.fill();
+    s.y += s.speed;
+    s.brilho += Math.random()*0.05-0.025;
+    if (s.brilho>1)s.brilho=1;
+    if (s.brilho<0)s.brilho=0;
+    if (s.y>canvas.height) s.y=0;
+  });
+
+  // Meteoros com trilha
+  meteoros.forEach(m=>{
+    m.trail.push({x:m.x,y:m.y});
+    if(m.trail.length>10) m.trail.shift();
+    ctx.strokeStyle="rgba(255,100,0,0.5)";
+    ctx.beginPath();
+    for(let i=0;i<m.trail.length-1;i++){
+      ctx.moveTo(m.trail[i].x,m.trail[i].y);
+      ctx.lineTo(m.trail[i+1].x,m.trail[i+1].y);
+    }
+    ctx.stroke();
+    ctx.fillStyle="orange";
+    ctx.beginPath();
+    ctx.arc(m.x,m.y,m.s,0,2*Math.PI);
+    ctx.fill();
+    m.y += m.speed;
+    if(m.y>canvas.height){
+      m.y=-10;
+      m.x=Math.random()*canvas.width;
+      m.trail=[];
+    }
+  });
+
+  // Avião
+  if(aviao.protegido) ctx.globalAlpha=0.5;
+  ctx.drawImage(aviaoImg,aviao.x,aviao.y,aviao.w,aviao.h);
+  ctx.globalAlpha=1;
+
+  // Pedras
+  ctx.fillStyle = "#888";
+  pedras.forEach(p=>{
+    p.y += velocidadePedras;
+    ctx.beginPath();
+    ctx.arc(p.x+p.s/2,p.y+p.s/2,p.s/2,0,2*Math.PI);
+    ctx.fill();
+    if(!aviao.protegido && colisao(aviao,p)) gameOver();
+  });
+  pedras = pedras.filter(p=>p.y<canvas.height);
+
+  // Power-ups
+  powerUps.forEach((pu,i)=>{
+    pu.y += 2;
+    ctx.fillStyle = pu.tipo==="pontos"?"yellow":"cyan";
+    ctx.strokeStyle="white";
+    ctx.lineWidth=1;
+    ctx.beginPath();
+    ctx.arc(pu.x+pu.s/2,pu.y+pu.s/2,pu.s/2,0,2*Math.PI);
+    ctx.fill();
+    ctx.stroke();
+    if(colisao(aviao,pu)){
+      if(pu.tipo==="pontos") score+=50;
+      if(pu.tipo==="protecao"){
+        aviao.protegido=true;
+        setTimeout(()=>aviao.protegido=false,5000);
+      }
+      beep(1000,100);
+      powerUps.splice(i,1);
+    }
+  });
+
+  // Explosões
+  explosoes.forEach((ex,i)=>{
+    ctx.fillStyle = `rgba(255,165,0,${1-ex.frame*0.08})`;
+    ctx.beginPath();
+    ctx.arc(ex.x+25,ex.y+25,ex.frame*3,0,2*Math.PI);
+    ctx.fill();
+    ex.frame++;
+    if(ex.frame>12) explosoes.splice(i,1);
+  });
+
+  // Criar pedras e power-ups
+  if(Math.random()<0.03+score/5000) criarPedra();
+  if(Math.random()<0.005) criarPowerUp();
+
+  // Pontuação
+  score++;
+  document.getElementById("score").innerText=score;
+
+  // Som cada 100 pontos
+  if(score%100===0) beep(800,100);
+
+  // Aumentar velocidade
+  if(score%200===0) velocidadePedras += 0.2;
+
+  requestAnimationFrame(loop);
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Super Dona</title>
+<style>
+body {margin:0; overflow:hidden; font-family:Arial, sans-serif; background:black; color:white;}
+canvas {display:block;}
+#menu {
+  position:absolute; top:10px; width:100%; text-align:center; z-index:10;
+}
+button {
+  padding:15px 30px; font-size:20px; cursor:pointer; border-radius:5px;
+  background:#00aaff; color:white; border:none;
+}
+button:hover { background:#0091dd; }
+#gameOverMsg {
+  position:absolute; width:100%; top:40%; text-align:center; font-size:60px; color:red; display:none;
+}
+</style>
+</head>
+<body>
+
+<div id="menu">
+  <h1>✈️ Super Dona</h1>
+  <p>Pontos: <span id="score">0</span> | Recorde: <span id="record">0</span></p>
+  <button id="playButton" onclick="startGame()">▶️ Jogar</button>
+</div>
+
+<div id="gameOverMsg">💀 SE FUDEU 💀</div>
+
+<canvas id="game"></canvas>
+
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+canvas.width=window.innerWidth;
+canvas.height=window.innerHeight;
+
+let aviao,pedras,score,recorde,estrelas,powerUps,explosoes,meteoros,nuvens,planetas;
+let playing=false,velocidadePedras=4,teclaEsquerda=false,teclaDireita=false;
+
+// Recorde
+recorde=localStorage.getItem("recorde")||0;
+document.getElementById("record").innerText=recorde;
+
+// Sons
+function beep(freq,time){const audio=new AudioContext();const osc=audio.createOscillator();osc.frequency.value=freq;osc.connect(audio.destination);osc.start();setTimeout(()=>osc.stop(),time);}
+function gameOverSound(){const audio=new AudioContext();const osc=audio.createOscillator();osc.frequency.value=220;osc.connect(audio.destination);osc.start();osc.frequency.setValueAtTime(110,audio.currentTime+0.1);setTimeout(()=>osc.stop(),400);}
+
+// Música animada estilo Mario
+let audioCtx,musicInterval;
+function startMusic(){
+  stopMusic();
+  audioCtx=new AudioContext();
+  const notes=[440,494,523,587,659,698,784];
+  let i=0;
+  musicInterval=setInterval(()=>{
+    const osc=audioCtx.createOscillator();
+    osc.type='square';
+    osc.frequency.value=notes[i%notes.length];
+    osc.connect(audioCtx.destination);
+    osc.start();
+    setTimeout(()=>osc.stop(),150);
+    i++;
+  },180);
+}
+function stopMusic(){clearInterval(musicInterval);}
+
+// Estrelas, Nuvens, Planetas, Meteoros
+function criarEstrelas(num){estrelas=[];for(let i=0;i<num;i++)estrelas.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,size:Math.random()*2+1,speed:Math.random()*0.8+0.2,brilho:Math.random()});}
+function criarNuvens(num){nuvens=[];for(let i=0;i<num;i++)nuvens.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,w:50+Math.random()*50,h:20+Math.random()*20,speed:0.2+Math.random()*0.5});}
+function criarPlanetas(){planetas=[{x:150,y:150,r:60,color:"#ff5555"},{x:canvas.width-200,y:100,r:50,color:"#55ffcc"},{x:canvas.width/2,y:200,r:40,color:"#ffaa00"}];}
+function criarMeteoros(num){meteoros=[];for(let i=0;i<num;i++)meteoros.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,s:2+Math.random()*3,speed:2+Math.random()*3,trail:[]});}
+
+// Iniciar jogo
+function startGame(){
+  document.getElementById("menu").style.display="none";
+  document.getElementById("gameOverMsg").style.display="none";
+  startMusic();
+  aviao={x:canvas.width/2-25,y:canvas.height-120,w:50,h:50,protegido:false};
+  pedras=[];powerUps=[];explosoes=[];
+  score=0;velocidadePedras=4;
+  teclaEsquerda=false;teclaDireita=false;
+  criarEstrelas(100);criarMeteoros(10);criarNuvens(7);criarPlanetas();
+  playing=true;
+  loop();
+}
+
+// Controles
+document.addEventListener("keydown",e=>{if(!playing)return;if(e.key==="ArrowLeft")teclaEsquerda=true;if(e.key==="ArrowRight")teclaDireita=true;});
+document.addEventListener("keyup",e=>{if(e.key==="ArrowLeft")teclaEsquerda=false;if(e.key==="ArrowRight")teclaDireita=false;});
+
+// Pedras e Power-ups
+function criarPedra(){pedras.push({x:Math.random()*(canvas.width-50),y:-40,s:25+Math.random()*25});}
+function criarPowerUp(){powerUps.push({x:Math.random()*(canvas.width-30),y:-30,s:20,tipo:Math.random()<0.5?"pontos":"protecao"});}
+
+// Colisão
+function colisao(a,p){return a.x<p.x+p.s&&a.x+a.w>p.x&&a.y<p.y+p.s&&a.y+a.h>p.y;}
+
+// Explosões
+function adicionarExplosao(x,y){explosoes.push({x,y,frame:0});}
+
+// Game Over
+function gameOver(){
+  playing=false;
+  gameOverSound();
+  stopMusic();
+  adicionarExplosao(aviao.x,aviao.y);
+  if(score>recorde){recorde=score;localStorage.setItem("recorde",recorde);}
+  document.getElementById("record").innerText=recorde;
+  document.getElementById("gameOverMsg").style.display="block";
+  document.getElementById("menu").style.display="block";
+}
+
+// Desenhar avião animado
+let anguloHélice=0;
+function desenharAviao(aviao){
+  ctx.save();
+  ctx.translate(aviao.x+aviao.w/2,aviao.y+aviao.h/2);
+  let inclinacao=(teclaDireita-teclaEsquerda)*0.2;
+  ctx.rotate(inclinacao);
+
+  // Corpo
+  ctx.fillStyle="#1E90FF";
+  ctx.strokeStyle="#000";
+  ctx.lineWidth=2;
+  ctx.beginPath();
+  ctx.moveTo(-25,0);ctx.quadraticCurveTo(-20,-20,0,-10);
+  ctx.quadraticCurveTo(20,-20,25,0);
+  ctx.quadraticCurveTo(20,10,0,10);
+  ctx.quadraticCurveTo(-20,10,-25,0);
+  ctx.fill();ctx.stroke();
+
+  // Asa
+  ctx.fillStyle="#FFD700";
+  ctx.beginPath();
+  ctx.moveTo(-15,0);ctx.lineTo(-35,15);ctx.lineTo(-5,5);ctx.closePath();
+  ctx.fill();ctx.stroke();
+
+  // Cauda
+  ctx.fillStyle="#FF4500";
+  ctx.beginPath();
+  ctx.moveTo(20,0);ctx.lineTo(35,-10);ctx.lineTo(30,5);ctx.closePath();
+  ctx.fill();ctx.stroke();
+
+  // Hélice
+  ctx.fillStyle="#555";
+  ctx.save();
+  ctx.rotate(anguloHélice);
+  ctx.fillRect(-2,-15,4,30);
+  ctx.fillRect(-15,-2,30,4);
+  ctx.restore();
+
+  ctx.restore();
+  anguloHélice+=0.3;
+}
+
+// Loop principal
+function loop(){
+  if(!playing) return;
+
+  if(teclaEsquerda) aviao.x-=8;
+  if(teclaDireita) aviao.x+=8;
+  if(aviao.x<0) aviao.x=0;
+  if(aviao.x>canvas.width-aviao.w) aviao.x=canvas.width-aviao.w;
+
+  // Fundo gradiente
+  let grad=ctx.createLinearGradient(0,0,0,canvas.height);
+  grad.addColorStop(0,"#0b0b1a");
+  grad.addColorStop(1,"#001f3f");
+  ctx.fillStyle=grad;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // Planetas
+  planetas.forEach(p=>{ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,2*Math.PI);ctx.fill();});
+
+  // Nuvens
+  nuvens.forEach(n=>{ctx.fillStyle="rgba(255,255,255,0.4)";ctx.beginPath();ctx.ellipse(n.x,n.y,n.w,n.h,0,0,2*Math.PI);ctx.fill();n.x+=n.speed;if(n.x>canvas.width+50)n.x=-50;});
+
+  // Estrelas
+  estrelas.forEach(s=>{ctx.fillStyle=`rgba(255,255,255,${s.brilho})`;ctx.beginPath();ctx.arc(s.x,s.y,s.size,0,2*Math.PI);ctx.fill();s.y+=s.speed;s.brilho+=Math.random()*0.05-0.025;if(s.brilho>1)s.brilho=1;if(s.brilho<0)s.brilho=0;if(s.y>canvas.height)s.y=0;});
+
+  // Meteoros
+  meteoros.forEach(m=>{
+    m.trail.push({x:m.x,y:m.y});if(m.trail.length>10)m.trail.shift();
+    ctx.strokeStyle="rgba(255,100,0,0.5)";ctx.beginPath();
+    for(let i=0;i<m.trail.length-1;i++){ctx.moveTo(m.trail[i].x,m.trail[i].y);ctx.lineTo(m.trail[i+1].x,m.trail[i+1].y);}
+    ctx.stroke();ctx.fillStyle="orange";ctx.beginPath();ctx.arc(m.x,m.y,m.s,0,2*Math.PI);ctx.fill();
+    m.y+=m.speed;if(m.y>canvas.height){m.y=-10;m.x=Math.random()*canvas.width;m.trail=[];}
+  });
+
+  // Avião
+  desenharAviao(aviao);
+
+  // Pedras
+  ctx.fillStyle="#888";pedras.forEach(p=>{p.y+=velocidadePedras;ctx.beginPath();ctx.arc(p.x+p.s/2,p.y+p.s/2,p.s/2,0,2*Math.PI);ctx.fill();if(!aviao.protegido && colisao(aviao,p)) gameOver();});
+  pedras=pedras.filter(p=>p.y<canvas.height);
+
+  // Power-ups
+  powerUps.forEach((pu,i)=>{pu.y+=2;ctx.fillStyle=pu.tipo==="pontos"?"yellow":"cyan";ctx.strokeStyle="white";ctx.lineWidth=1;ctx.beginPath();ctx.arc(pu.x+pu.s/2,pu.y+pu.s/2,pu.s/2,0,2*Math.PI);ctx.fill();ctx.stroke();
+    if(colisao(aviao,pu)){if(pu.tipo==="pontos") score+=50;if(pu.tipo==="protecao"){aviao.protegido=true;setTimeout(()=>aviao.protegido=false,5000);}beep(1000,100);powerUps.splice(i,1);}
+  });
+
+  // Explosões
+  explosoes.forEach((ex,i)=>{ctx.fillStyle=`rgba(255,165,0,${1-ex.frame*0.08})`;ctx.beginPath();ctx.arc(ex.x+25,ex.y+25,ex.frame*3,0,2*Math.PI);ctx.fill();ex.frame++;if(ex.frame>12) explosoes.splice(i,1);});
+
+  // Criar pedras e power-ups
+  if(Math.random()<0.03+score/5000) criarPedra(); 
+  if(Math.random()<0.005) criarPowerUp();
+
+  // Pontuação
+  score++;document.getElementById("score").innerText=score;
+
+  // Beep a cada 100 pontos
+  if(score%100===0) beep(800,100);
+
+  // Aumentar velocidade
+  if(score%200===0) velocidadePedras+=0.2;
+
+  requestAnimationFrame(loop);
+}
+
+window.addEventListener('resize',()=>{canvas.width=window.innerWidth;canvas.height=window.innerHeight;});
+</script>
+
+</body>
+</html>

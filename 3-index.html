@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>SPEED RUN 🚀✈️</title>
+
+<style>
+body {
+  margin: 0;
+  overflow: hidden;
+  background: black;
+  font-family: Arial, sans-serif;
+  color: white;
+  text-align: center;
+}
+
+/* ===== INTRO ===== */
+#intro {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(#020024, #090979, #000);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+}
+
+.rocket-container {
+  position: absolute;
+  bottom: -200px;
+  animation: subir 4s ease-out forwards;
+}
+
+@keyframes subir {
+  to { bottom: 55%; }
+}
+
+.rocket { font-size: 100px; }
+.fire {
+  font-size: 50px;
+  animation: fogo 0.2s infinite alternate;
+}
+
+@keyframes fogo {
+  from { transform: scaleY(1); }
+  to { transform: scaleY(1.3); }
+}
+
+.texto {
+  opacity: 0;
+  animation: aparecer 2s forwards;
+  animation-delay: 4s;
+  font-size: 56px;
+  font-weight: bold;
+}
+
+@keyframes aparecer {
+  to { opacity: 1; }
+}
+
+#entrar {
+  margin-top: 30px;
+  padding: 12px 25px;
+  font-size: 18px;
+  cursor: pointer;
+  display: none;
+  background: #00aaff;
+  border: none;
+  border-radius: 5px;
+  color: white;
+}
+
+/* ===== JOGO ===== */
+canvas {
+  display: block;
+  margin: auto;
+  border: 2px solid white;
+}
+
+#menu {
+  position: absolute;
+  top: 10px;
+  width: 100%;
+}
+
+button:hover { background: #0091dd; }
+</style>
+</head>
+
+<body>
+
+<!-- ===== INTRO ===== -->
+<div id="intro">
+  <div class="rocket-container">
+    <div class="rocket">🚀</div>
+    <div class="fire">🔥</div>
+  </div>
+
+  <div class="texto">SPEED RUN</div>
+  <button id="entrar" onclick="entrarJogo()">▶️ Entrar no Jogo</button>
+</div>
+
+<!-- ===== JOGO ===== -->
+<div id="menu">
+  <h1>⚡ SPEED RUN</h1>
+  <p>Pontos: <span id="score">0</span> | Recorde: <span id="record">0</span></p>
+  <button onclick="startGame()">▶️ Jogar</button>
+</div>
+
+<canvas id="game" width="400" height="500"></canvas>
+
+<script>
+/* ===== INTRO ===== */
+setTimeout(() => {
+  document.getElementById("entrar").style.display = "block";
+}, 6000);
+
+function entrarJogo(){
+  document.getElementById("intro").style.display = "none";
+}
+
+/* ===== JOGO (SEU CÓDIGO) ===== */
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+let aviao, pedras, score, recorde, estrelas, powerUps, explosoes, meteoros, nuvens, planetas;
+let playing = false;
+let velocidadePedras = 3;
+let teclaEsquerda = false;
+let teclaDireita = false;
+
+let audioCtx, bgOscillator, playingMusic=false;
+
+recorde = localStorage.getItem("recorde") || 0;
+document.getElementById("record").innerText = recorde;
+
+const aviaoImg = new Image();
+aviaoImg.src = "https://i.imgur.com/4kXcPz0.png"; 
+
+function beep(freq, time){
+  const audio = new AudioContext();
+  const osc = audio.createOscillator();
+  osc.frequency.value = freq;
+  osc.connect(audio.destination);
+  osc.start();
+  setTimeout(()=>osc.stop(), time);
+}
+
+function startMusic(){
+  if(playingMusic) return;
+  audioCtx = new AudioContext();
+  bgOscillator = audioCtx.createOscillator();
+  bgOscillator.type = 'square';
+  bgOscillator.frequency.setValueAtTime(440, audioCtx.currentTime);
+  bgOscillator.connect(audioCtx.destination);
+  bgOscillator.start();
+  playingMusic = true;
+}
+
+function stopMusic(){
+  if(bgOscillator){
+    bgOscillator.stop();
+    playingMusic=false;
+  }
+}
+
+function criarEstrelas(num){estrelas=[];for(let i=0;i<num;i++)estrelas.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,size:Math.random()*2+1,speed:Math.random()*0.8+0.2,brilho:Math.random()});}
+function criarNuvens(num){nuvens=[];for(let i=0;i<num;i++)nuvens.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,w:50+Math.random()*50,h:20+Math.random()*20,speed:0.2+Math.random()*0.5});}
+function criarPlanetas(){planetas=[{x:50,y:80,r:30,color:"#ff5555"},{x:300,y:150,r:40,color:"#55ffcc"},{x:200,y:50,r:25,color:"#ffaa00"}];}
+function criarMeteoros(num){meteoros=[];for(let i=0;i<num;i++)meteoros.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,s:2+Math.random()*3,speed:2+Math.random()*2,trail:[]});}
+
+function startGame(){
+  startMusic();
+  aviao={x:180,y:420,w:50,h:50,protegido:false};
+  pedras=[];powerUps=[];explosoes=[];
+  score=0;velocidadePedras=3;
+  criarEstrelas(60);criarMeteoros(7);
+  criarNuvens(5);criarPlanetas();
+  playing=true;
+  loop();
+}
+
+document.addEventListener("keydown",e=>{if(!playing)return;if(e.key==="ArrowLeft")teclaEsquerda=true;if(e.key==="ArrowRight")teclaDireita=true;});
+document.addEventListener("keyup",e=>{if(e.key==="ArrowLeft")teclaEsquerda=false;if(e.key==="ArrowRight")teclaDireita=false;});
+
+function criarPedra(){pedras.push({x:Math.random()*360,y:-40,s:25+Math.random()*25});}
+function colisao(a,p){return a.x<p.x+p.s&&a.x+a.w>p.x&&a.y<p.y+p.s&&a.y+a.h>p.y;}
+
+function loop(){
+  if(!playing) return;
+
+  if(teclaEsquerda) aviao.x-=7;
+  if(teclaDireita) aviao.x+=7;
+
+  ctx.fillStyle="black";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.drawImage(aviaoImg,aviao.x,aviao.y,aviao.w,aviao.h);
+
+  pedras.forEach(p=>{
+    p.y+=velocidadePedras;
+    ctx.beginPath();
+    ctx.arc(p.x+p.s/2,p.y+p.s/2,p.s/2,0,2*Math.PI);
+    ctx.fill();
+    if(colisao(aviao,p)) playing=false;
+  });
+
+  pedras = pedras.filter(p=>p.y<canvas.height);
+  if(Math.random()<0.03) criarPedra();
+
+  score++;
+  document.getElementById("score").innerText = score;
+
+  requestAnimationFrame(loop);
+}
+</script>
+
+</body>
+</html>

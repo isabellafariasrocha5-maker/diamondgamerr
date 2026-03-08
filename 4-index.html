@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>SPEED RUN 🚀✈️</title>
+
+<style>
+body {
+  margin: 0;
+  overflow: hidden;
+  background: black;
+  font-family: Arial, sans-serif;
+  color: white;
+  text-align: center;
+}
+
+/* ===== INTRO ===== */
+#intro {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(#020024, #090979, #000);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 20;
+}
+
+.rocket-container {
+  position: absolute;
+  bottom: -200px;
+  animation: subir 4s ease-out forwards;
+}
+
+@keyframes subir { to { bottom: 55%; } }
+
+.rocket { font-size: 100px; }
+.fire {
+  font-size: 50px;
+  animation: fogo 0.2s infinite alternate;
+}
+@keyframes fogo {
+  from { transform: scaleY(1); }
+  to { transform: scaleY(1.3); }
+}
+
+.texto {
+  opacity: 0;
+  animation: aparecer 2s forwards;
+  animation-delay: 4s;
+  font-size: 56px;
+  font-weight: bold;
+}
+@keyframes aparecer { to { opacity: 1; } }
+
+#entrar {
+  margin-top: 100px;
+  padding: 15px 30px;
+  font-size: 20px;
+  cursor: pointer;
+  background: #00aaff;
+  border: none;
+  border-radius: 5px;
+  color: white;
+  display: none;
+}
+#entrar:hover { background:#0091dd; }
+
+/* ===== JOGO ===== */
+#menu {
+  position:absolute;
+  top:10px;
+  width:100%;
+  text-align:center;
+  z-index:10;
+}
+
+button {
+  padding:15px 30px;
+  font-size:20px;
+  cursor:pointer;
+  border-radius:5px;
+  background:#00aaff;
+  color:white;
+  border:none;
+}
+button:hover { background:#0091dd; }
+
+#gameOverMsg {
+  position:absolute;
+  width:100%;
+  top:40%;
+  text-align:center;
+  font-size:60px;
+  color:red;
+  display:none;
+}
+</style>
+</head>
+
+<body>
+
+<!-- ===== INTRO ===== -->
+<div id="intro">
+  <div class="rocket-container">
+    <div class="rocket">🚀</div>
+    <div class="fire">🔥</div>
+  </div>
+  <div class="texto">SPEED RUN</div>
+  <button id="entrar" onclick="entrarJogo()">▶️ Entrar no jogo</button>
+</div>
+
+<!-- ===== JOGO ===== -->
+<div id="menu">
+  <h1>⚡ SPEED RUN</h1>
+  <p>Pontos: <span id="score">0</span> | Recorde: <span id="record">0</span></p>
+  <button onclick="startGame()">▶️ Jogar</button>
+</div>
+
+<div id="gameOverMsg">💀 GAME OVER 💀</div>
+
+<canvas id="game"></canvas>
+
+<script>
+/* ===== INTRO ===== */
+setTimeout(()=>document.getElementById("entrar").style.display="block",6000);
+function entrarJogo(){
+  document.getElementById("intro").style.display="none";
+}
+
+/* ===== JOGO (SEU NOVO CÓDIGO) ===== */
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+canvas.width=window.innerWidth;
+canvas.height=window.innerHeight;
+
+let aviao,pedras,score,recorde,estrelas,powerUps,explosoes,meteoros,nuvens,planetas;
+let playing=false,velocidadePedras=4,teclaEsquerda=false,teclaDireita=false;
+
+recorde=localStorage.getItem("recorde")||0;
+document.getElementById("record").innerText=recorde;
+
+/* Sons */
+function beep(freq,time){
+  const audio=new AudioContext();
+  const osc=audio.createOscillator();
+  osc.frequency.value=freq;
+  osc.connect(audio.destination);
+  osc.start();
+  setTimeout(()=>osc.stop(),time);
+}
+function gameOverSound(){
+  const audio=new AudioContext();
+  const osc=audio.createOscillator();
+  osc.frequency.value=220;
+  osc.connect(audio.destination);
+  osc.start();
+  osc.frequency.setValueAtTime(110,audio.currentTime+0.1);
+  setTimeout(()=>osc.stop(),400);
+}
+
+/* Música */
+let audioCtx,musicInterval;
+function startMusic(){
+  stopMusic();
+  audioCtx=new AudioContext();
+  const notes=[440,494,523,587,659,698,784];
+  let i=0;
+  musicInterval=setInterval(()=>{
+    const osc=audioCtx.createOscillator();
+    osc.type='square';
+    osc.frequency.value=notes[i++%notes.length];
+    osc.connect(audioCtx.destination);
+    osc.start();
+    setTimeout(()=>osc.stop(),150);
+  },180);
+}
+function stopMusic(){ clearInterval(musicInterval); }
+
+/* Ambiente */
+function criarEstrelas(n){estrelas=[];for(let i=0;i<n;i++)estrelas.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,size:Math.random()*2+1,speed:Math.random(),brilho:Math.random()});}
+function criarNuvens(n){nuvens=[];for(let i=0;i<n;i++)nuvens.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,w:50+Math.random()*50,h:20+Math.random()*20,speed:0.3});}
+function criarPlanetas(){planetas=[{x:150,y:150,r:60,color:"#ff5555"},{x:canvas.width-200,y:100,r:50,color:"#55ffcc"}];}
+function criarMeteoros(n){meteoros=[];for(let i=0;i<n;i++)meteoros.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,s:3,speed:3,trail:[]});}
+
+/* Jogo */
+function startGame(){
+  document.getElementById("menu").style.display="none";
+  document.getElementById("gameOverMsg").style.display="none";
+  startMusic();
+  aviao={x:canvas.width/2-25,y:canvas.height-120,w:50,h:50,protegido:false};
+  pedras=[];powerUps=[];explosoes=[];
+  score=0;
+  criarEstrelas(100);criarMeteoros(10);criarNuvens(7);criarPlanetas();
+  playing=true;
+  loop();
+}
+
+document.addEventListener("keydown",e=>{if(!playing)return;if(e.key==="ArrowLeft")teclaEsquerda=true;if(e.key==="ArrowRight")teclaDireita=true;});
+document.addEventListener("keyup",e=>{if(e.key==="ArrowLeft")teclaEsquerda=false;if(e.key==="ArrowRight")teclaDireita=false;});
+
+function criarPedra(){pedras.push({x:Math.random()*canvas.width,y:-40,s:30});}
+function colisao(a,p){return a.x<p.x+p.s&&a.x+a.w>p.x&&a.y<p.y+p.s&&a.y+a.h>p.y;}
+
+function gameOver(){
+  playing=false;
+  gameOverSound();
+  stopMusic();
+  if(score>recorde){recorde=score;localStorage.setItem("recorde",recorde);}
+  document.getElementById("record").innerText=recorde;
+  document.getElementById("gameOverMsg").style.display="block";
+  document.getElementById("menu").style.display="block";
+}
+
+function loop(){
+  if(!playing)return;
+
+  if(teclaEsquerda) aviao.x-=8;
+  if(teclaDireita) aviao.x+=8;
+
+  ctx.fillStyle="black";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  ctx.fillStyle="#1E90FF";
+  ctx.fillRect(aviao.x,aviao.y,aviao.w,aviao.h);
+
+  pedras.forEach(p=>{
+    p.y+=velocidadePedras;
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,p.s,0,Math.PI*2);
+    ctx.fill();
+    if(colisao(aviao,p)) gameOver();
+  });
+
+  if(Math.random()<0.04) criarPedra();
+  score++;
+  document.getElementById("score").innerText=score;
+
+  requestAnimationFrame(loop);
+}
+
+window.addEventListener("resize",()=>{
+  canvas.width=window.innerWidth;
+  canvas.height=window.innerHeight;
+});
+</script>
+
+</body>
+</html>

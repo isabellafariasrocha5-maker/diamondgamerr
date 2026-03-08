@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Ganhe uma Galinha</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f2f2f2;
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        button {
+            padding: 20px 30px;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        #premio {
+            display: none;
+            margin-top: 20px;
+            text-align: center;
+            font-size: 22px;
+        }
+
+        .galinha {
+            font-size: 100px;
+        }
+    </style>
+</head>
+<body>
+
+<button onclick="mostrarGalinha()">Toque aqui</button>
+
+<div id="premio">
+    <div class="galinha">🐔</div>
+    <p><strong>Parabéns!</strong><br>Você acabou de ganhar uma galinha</p>
+</div>
+
+<script>
+    function mostrarGalinha() {
+        document.getElementById("premio").style.display = "block";
+    }
+</script>
+
+</body>
+</html>

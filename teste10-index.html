@@ -1,0 +1,100 @@
+<script>
+// ---- VARIÁVEIS DO JOGO ----
+let aviao = {x:canvas.width/2, y:canvas.height-100, width:50, height:50};
+let pedras = [];
+let estrelas = [];
+for(let i=0;i<100;i++){
+  estrelas.push({x:Math.random()*canvas.width, y:Math.random()*canvas.height, size:Math.random()*2+1});
+}
+
+// ---- FUNÇÕES GRÁFICAS ----
+function drawBackground(){
+  // Fundo gradiente
+  let grad=ctx.createLinearGradient(0,0,0,canvas.height);
+  grad.addColorStop(0,"#0b0b1a"); grad.addColorStop(1,"#001f3f");
+  ctx.fillStyle=grad;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  // Estrelas
+  ctx.fillStyle="white";
+  estrelas.forEach(s=>ctx.fillRect(s.x,s.y,s.size,s.size));
+}
+
+function drawAviao(){
+  ctx.fillStyle=aviaoCor;
+  ctx.beginPath();
+  ctx.moveTo(aviao.x,aviao.y); // ponta do avião
+  ctx.lineTo(aviao.x-25,aviao.y+50);
+  ctx.lineTo(aviao.x+25,aviao.y+50);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawPedras(){
+  ctx.fillStyle="gray";
+  pedras.forEach(p=>{
+    ctx.beginPath();
+    ctx.arc(p.x+25,p.y+25,25,0,Math.PI*2);
+    ctx.fill();
+  });
+}
+
+function loopGame(){
+  if(!playing) return;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  drawBackground();
+  if(teclaEsquerda && aviao.x-25>0) aviao.x-=7;
+  if(teclaDireita && aviao.x+25<canvas.width) aviao.x+=7;
+  drawAviao();
+  drawPedras();
+
+  // Movimentar pedras
+  for(let i=pedras.length-1;i>=0;i--){
+    pedras[i].y += velocidadePedras;
+    if(colisaoCircleRect(pedras[i],aviao)){gameOver(); return;}
+    if(pedras[i].y>canvas.height) pedras.splice(i,1);
+  }
+  requestAnimationFrame(loopGame);
+}
+
+// Colisão círculo/retângulo
+function colisaoCircleRect(circle, rect){
+  let distX=Math.abs(circle.x+25 - rect.x);
+  let distY=Math.abs(circle.y+25 - rect.y);
+  if(distX>25+rect.width/2 || distY>25+rect.height/2) return false;
+  if(distX<=rect.width/2 || distY<=rect.height/2) return true;
+  let dx=distX-rect.width/2;
+  let dy=distY-rect.height/2;
+  return dx*dx+dy*dy <= 25*25;
+}
+
+// Animação do foguete com chama
+function loopAnimation(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  let grad=ctx.createLinearGradient(0,0,0,canvas.height);
+  grad.addColorStop(0,"#0b0b1a"); grad.addColorStop(1,"#001f3f");
+  ctx.fillStyle=grad; ctx.fillRect(0,0,canvas.width,canvas.height);
+  // Estrelas
+  ctx.fillStyle="white";
+  estrelas.forEach(s=>ctx.fillRect(s.x,s.y,s.size,s.size));
+
+  // Foguete
+  ctx.fillStyle="red";
+  ctx.beginPath();
+  ctx.moveTo(canvas.width/2,fogueteY);
+  ctx.lineTo(canvas.width/2-15,fogueteY+50);
+  ctx.lineTo(canvas.width/2+15,fogueteY+50);
+  ctx.closePath();
+  ctx.fill();
+  // Chamas
+  ctx.fillStyle="orange";
+  ctx.beginPath();
+  ctx.moveTo(canvas.width/2,fogueteY+50);
+  ctx.lineTo(canvas.width/2-10,fogueteY+70);
+  ctx.lineTo(canvas.width/2+10,fogueteY+70);
+  ctx.closePath();
+  ctx.fill();
+
+  if(fogueteY>canvas.height/2-50){ fogueteY-=5; requestAnimationFrame(loopAnimation); }
+  else { document.getElementById("menu").style.display="block"; }
+}
+</script>
